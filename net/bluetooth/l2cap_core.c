@@ -5307,23 +5307,7 @@ static void l2cap_amp_signal_worker(struct work_struct *work)
 void l2cap_amp_physical_complete(int result, u8 local_id, u8 remote_id,
 				struct sock *sk)
 {
-	struct l2cap_info_rsp *rsp = (struct l2cap_info_rsp *) data;
-	u16 type, result;
-
-	if (cmd_len < sizeof(*rsp))
-		return -EPROTO;
-
-	type   = __le16_to_cpu(rsp->type);
-	result = __le16_to_cpu(rsp->result);
-
-	BT_DBG("type 0x%4.4x result 0x%2.2x", type, result);
-
-	/* L2CAP Info req/rsp are unbound to channels, add extra checks */
-	if (cmd->ident != conn->info_ident ||
-			conn->info_state & L2CAP_INFO_FEAT_MASK_REQ_DONE)
-		return 0;
-
-	cancel_delayed_work(&conn->info_timer);
+	struct l2cap_pinfo *pi;
 
 	BT_DBG("result %d, local_id %d, remote_id %d, sk %p", result,
 		(int) local_id, (int) remote_id, sk);
@@ -5695,8 +5679,9 @@ static int l2cap_sig_amp(struct l2cap_conn *conn, struct l2cap_cmd_hdr *cmd,
 {
 	struct l2cap_amp_signal_work *amp_work;
 
-	if (cmd_len != sizeof(*rsp))
-		return -EPROTO;
+	amp_work = kzalloc(sizeof(*amp_work), GFP_ATOMIC);
+	if (!amp_work)
+		return -ENOMEM;
 
 	INIT_WORK(&amp_work->work, l2cap_amp_signal_worker);
 	amp_work->conn = conn;
